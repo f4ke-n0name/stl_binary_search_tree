@@ -1,1 +1,1 @@
-add_library(bst bst.h bst.cpp)
+add_library(bst bst.cpp bst.h)

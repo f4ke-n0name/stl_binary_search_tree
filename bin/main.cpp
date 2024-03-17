@@ -2,15 +2,14 @@
 
 #include "lib/bst.h"
 
+// Подумать над тем, чтобы в Iterator добавить поля Node и убрать саму Node
+// Протестировать свои функции
+// Написать тесты
+
 int main() {
   // bst<int, InOrder, std::greater<int>> a, c;
   //   bst<int, InOrder> b = a;
   //   c = a;
   //   std::cout << b.max_size() << ' ' << c.size();
-  int a = 4;
-  int b = 5;
-  b = a;
-  a = 3;
-  std::cout << b;
   return 0;
 }

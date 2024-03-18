@@ -2,9 +2,12 @@
 
 #include "lib/bst.h"
 
-// Подумать над тем, чтобы в Iterator добавить поля Node и убрать саму Node
 // Протестировать свои функции
 // Написать тесты
+// написать minimum и maximum
+// подумать над swap
+// подумать все ли варианты методов написаны
+// сделать нормальный tag-dispathing 
 
 int main() {
   // bst<int, InOrder, std::greater<int>> a, c;

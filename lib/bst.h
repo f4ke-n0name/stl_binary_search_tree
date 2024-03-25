@@ -4,281 +4,369 @@
 #include <memory>
 #include <vector>
 
-enum Order { InOrder, PostOrder, PreOrder };
+template <typename T>
+struct Node {
+  Node* left;
+  Node* right;
+  Node* parent;
+  T* value;
 
-template <class T, Order order = InOrder, class Compare = std::less<T>,
+  Node(const T& value)
+      : value(value), left(nullptr), right(nullptr), parent(nullptr) {}
+  Node() : left(nullptr), right(nullptr), parent(nullptr) {}
+};
+
+class InOrder {};
+
+class PostOrder {};
+
+class PreOrder {};
+
+template <class T, class Order = InOrder, class Compare = std::less<T>,
           class Allocator = std::allocator<T> >
-class bst {
-template <class U , Order Traversal>
-  struct Node {
-    typedef U value_type;
-    typedef Node<T, Traversal> node_type;
-    typedef node_type& reference;
-    typedef const node_type& const_reference;
-    typedef node_type* iterator;
-    typedef const node_type* const_iterator;
+class BST {
+  class iterator {
+    typedef T value_type;
+    typedef Node<value_type> node_type;
+    typedef value_type& reference;
+    typedef const value_type& const_reference;
     typedef size_t size_type;
 
-    value_type value;
-    iterator left;
-    iterator right;
-    iterator parent;
-    std::vector<iterator> iterators_order;
-    size_t size;
-    size_t it;
+   private:
+    Node<value_type>* current_node_;
+    Node<value_type>* root_;
+    Order current_order_;
 
-    void inorder(iterator node) {
+    void inorder(node_type* node, std::vector<value_type>& order_vector) {
       if (node == nullptr) {
         return;
       }
-      inorder(node->left);
-      iterators_order.push_back(node);
-      inorder(node->right);
+      inorder(node->left, order_vector);
+      order_vector.push_back(*node->value);
+      inorder(node->right, order_vector);
     }
 
-    void postorder(iterator node) {
+    void postorder(node_type* node, std::vector<value_type>& order_vector) {
       if (node == nullptr) {
         return;
       }
-      postorder(node->left, iterators_order);
-      postorder(node->right, iterators_order);
-      iterators_order.push_back(node);
+      postorder(node->left, order_vector);
+      postorder(node->right, order_vector);
+      order_vector.push_back(*node->value);
     }
 
-    void preorder(iterator node) {
+    void preorder(node_type* node, std::vector<value_type>& order_vector) {
       if (node == nullptr) {
         return;
       }
-      iterators_order.push_back(node);
-      preorder(node->left);
-      preorder(node->right);
+      order_vector.push_back(*node->value);
+      preorder(node->left, order_vector);
+      preorder(node->right, order_vector);
     }
 
-    Node() {
-      left = nullptr;
-      right = nullptr;
-      parent = nullptr;
-    }
-
-    Node(value_type& data) {
-      value = data;
-      left = nullptr;
-      right = nullptr;
-      parent = nullptr;
-    }
-
-    void initiliaze(size_t size, iterator root) {
-      this->size = size;
-      it = 0;
-      if constexpr (Traversal == InOrder) {
-        inorder(root);
-      } else if constexpr (Traversal == PostOrder) {
-        postorder(root);
-      } else if constexpr (Traversal == PreOrder) {
-        preorder(root);
+    void find_node(node_type* node, const_reference value) {
+      if (node != nullptr) {
+        if (*node->value == value) {
+          current_node_ = node;
+        }
+        find_node(node->left, value);
+        find_node(node->right, value);
       }
     }
 
-    iterator operator++() {
-      if (it < size) {
-        return iterators_order[++it];
+    iterator next_iterator(InOrder order) {
+      std::vector<value_type> order_vector;
+      inorder(root_, order_vector);
+      size_type index = -1;
+      for (size_type i = 0; i < order_vector.size(); i++) {
+        if (order_vector[i] == *current_node_->value) {
+          index = i + 1;
+        }
+      }
+      if (index < order_vector.size()) {
+        find_node(root_, order_vector[index]);
       } else {
-        return iterators_order[size - 1];
+        current_node_ = nullptr;
       }
+      return *this;
     }
 
-    iterator operator--() {
-      if (it >= size) {
-        return iterators_order[--it];
-      } else {
-        return iterators_order[0];
+    iterator next_iterator(PreOrder order) {
+      std::vector<value_type> order_vector;
+      preorder(root_, order_vector);
+      size_type index = -1;
+      for (size_type i = 0; i < order_vector.size(); i++) {
+        if (order_vector[i] == *current_node_->value) {
+          index = i + 1;
+        }
       }
+      if (index < order_vector.size()) {
+        find_node(root_, order_vector[index]);
+      } else {
+        current_node_ = nullptr;
+      }
+      return *this;
     }
+
+    iterator next_iterator(PostOrder order) {
+      std::vector<value_type> order_vector;
+      postorder(root_, order_vector);
+      size_type index = -1;
+      for (size_type i = 0; i < order_vector.size(); i++) {
+        if (order_vector[i] == *current_node_->value) {
+          index = i + 1;
+        }
+      }
+      if (index < order_vector.size()) {
+        find_node(root_, order_vector[index]);
+      } else {
+        current_node_ = nullptr;
+      }
+      return *this;
+    }
+
+    iterator prev_iterator(InOrder order) {
+      std::vector<T> order_vector;
+      inorder(root_, order_vector);
+      size_type index = -1;
+      for (size_type i = 0; i < order_vector.size(); i++) {
+        if (current_node_ != nullptr) {
+          if (order_vector[i] == *current_node_->value) {
+            index = i - 1;
+          }
+        }
+      }
+      if (current_node_ == nullptr) {
+        find_node(root_, order_vector[order_vector.size() - 1]);
+      } else if (index != -1) {
+        find_node(root_, order_vector[index]);
+      } else {
+        current_node_ = nullptr;
+      }
+      return *this;
+    }
+
+    iterator prev_iterator(PreOrder order) {
+      std::vector<T> order_vector;
+      preorder(root_, order_vector);
+      size_type index = -1;
+      for (size_type i = 0; i < order_vector.size(); i++) {
+        if (current_node_ != nullptr) {
+          if (order_vector[i] == *current_node_->value) {
+            index = i - 1;
+          }
+        }
+      }
+      if (current_node_ == nullptr) {
+        find_node(root_, order_vector[order_vector.size() - 1]);
+      } else if (index != -1) {
+        find_node(root_, order_vector[index]);
+      } else {
+        current_node_ = nullptr;
+      }
+      return *this;
+    }
+
+    iterator prev_iterator(PostOrder order) {
+      std::vector<T> order_vector;
+      postorder(root_, order_vector);
+      size_type index = -1;
+      for (size_type i = 0; i < order_vector.size(); i++) {
+        if (current_node_ != nullptr) {
+          if (order_vector[i] == *current_node_->value) {
+            index = i - 1;
+          }
+        }
+      }
+      if (current_node_ == nullptr) {
+        find_node(root_, order_vector[order_vector.size() - 1]);
+      } else if (index != -1) {
+        find_node(root_, order_vector[index]);
+      } else {
+        current_node_ = nullptr;
+      }
+      return *this;
+    }
+
+   public:
+    iterator(node_type* node, Order order, node_type* root)
+        : root_{root}, current_node_{node}, current_order_{order} {}
+
+    iterator(const iterator& other)
+        : root_(other.root_),
+          current_node_(other.current_node_),
+          current_order_(other.current_order_) {}
+
+    iterator operator++() { return next_iterator(current_order_); }
+
+    iterator operator--() { return prev_iterator(current_order_); }
 
     iterator operator++(int) {
-      if (it >= size) {
-        return iterators_order[size - 1];
-      }
-      iterator copy_iteartor = iterators_order[it];
-      if (it < size) {
-        ++it;
-      }
+      iterator copy_iteartor(*this);
+      ++(*this);
       return copy_iteartor;
     }
 
     iterator operator--(int) {
-      if (it < 0) {
-        return nullptr;
-      }
-      iterator copy_iteartor = iterators_order[it];
-      if (it >= size) {
-        --it;
-      }
+      iterator copy_iteartor(*this);
+      --(*this);
       return copy_iteartor;
     }
 
-    reference operator*() { return &iterators_order[it].value; }
+    value_type operator*() { return *current_node_->value; }
 
-    bool operator==(const_reference other) {
-      return (this->value == other.value) && (this->left == other.left) &&
-             (this->right == other.right) && (this->parent == other.parent);
+    bool operator==(const iterator& other) {
+      return (other.current_node_ == current_node_);
     }
 
-    bool operator!=(const_reference other) { return !(this == other); }
+    bool operator!=(const iterator& other) {
+      return (other.current_node_ != current_node_);
+    }
   };
 
  private:
+  typedef Node<T> node_type;
   typedef T value_type;
-  typedef Node<value_type, order>* iterator;
-  typedef bst& reference;
-  typedef const bst& const_reference;
+  typedef BST& reference;
+  typedef const BST& const_reference;
   typedef const iterator const_iterator;
   typedef size_t size_type;
   typedef Allocator allocator_type;
 
-  iterator root_;
-  size_type size_;
-  size_type max_size_;
-  iterator it_;
+  Order type_order_;
+  size_type size_ = 0;
+  size_type max_size_ = 15352;
+  node_type* root_ = nullptr;
+  Compare compare_;
   allocator_type allocator_;
-  iterator begin_;
-  iterator end_;
-  iterator rbegin_;
-  iterator rend_;
 
-  void preorder(iterator node, std::vector<iterator>& iterators_order) {
-    if (node == nullptr) {
-      return;
+  void copy_tree(node_type* lhs, node_type* rhs) {
+    if (rhs != nullptr) {
+      if (lhs == nullptr) {
+        lhs = new node_type[1];
+      }
+      lhs->value = allocator_.allocate(1);
+      *lhs->value = *rhs->value;
+      if (rhs->left != nullptr) {
+        lhs->left = new node_type[1];
+        copy_tree(lhs->left, rhs->left);
+      }
+
+      if (rhs->right != nullptr) {
+        lhs->right = new node_type[1];
+        copy_tree(lhs->right, rhs->right);
+      }
     }
-    iterators_order.push_back(node);
-    preorder(node->left, iterators_order);
-    preorder(node->right, iterators_order);
   }
 
-  void postorder(iterator node, std::vector<iterator>& iterators_order) {
-    if (node == nullptr) {
-      return;
+  node_type* begin_of_order(InOrder order) {
+    node_type* first_in_order = root_;
+    while (first_in_order->left) {
+      first_in_order = first_in_order->left;
     }
-    postorder(node->left, iterators_order);
-    postorder(node->right, iterators_order);
-    iterators_order.push_back(node);
+    return first_in_order;
   }
 
-  iterator minimum(iterator node) {
-    if (node->left == nullptr) {
-      return node;
+  node_type* begin_of_order(PreOrder order) { return root_; }
+
+  node_type* begin_of_order(PostOrder order) {
+    node_type* first_in_order = root_;
+    while (first_in_order->left || first_in_order->right) {
+      if (first_in_order->left) {
+        first_in_order = first_in_order->left;
+      } else {
+        first_in_order = first_in_order->right;
+      }
     }
-    return minimum(node->left);
+    return first_in_order;
   }
 
-  iterator maximum(iterator node) {
-    if (node.right == nullptr) {
-      return node;
+  void delete_node(node_type* node) {
+    if (node != nullptr) {
+      delete_node(node->left);
+      delete_node(node->right);
+      allocator_.deallocate(node->value, 1);
+      delete node;
     }
-    return maximum(node.right);
+  }
+
+  node_type* find_position(const value_type& x) {
+    node_type* position = root_;
+    bool flag = true;
+    while (flag) {
+      if (*position->value == x) {
+        return position;
+      } else if (compare_(x, *position->value)) {
+        if (position->right != nullptr) {
+          position = position->right;
+        } else {
+          return position;
+        }
+      } else if (!compare_(x, *position->value)) {
+        if (position->left) {
+          position = position->left;
+        } else {
+          return position;
+        }
+      }
+    }
+    return position;
+  }
+
+  node_type* minimum(node_type* x) {
+    if (x->left == nullptr) {
+      return x;
+    }
+    return minimum(x->left);
   }
 
  public:
-  bst()
-      : root_{nullptr},
-        size_{0},
-        max_size_{15352},
-        it_{nullptr},
-        begin_{nullptr},
-        end_{nullptr},
-        rbegin_{nullptr},
-        rend_{nullptr} {}
-  bst(const bst& other)
-      : root_{nullptr},
-        size_{0},
-        max_size_{15352},
-        it_{nullptr},
-        begin_{nullptr},
-        end_{nullptr},
-        rbegin_{nullptr},
-        rend_{nullptr} {
-    std::vector<iterator> iterators_order;
-    size_t i = 0;
-    preorder(other.root_, iterators_order);
-    while (i < size_) {
-      this->insert(this->root_, iterators_order[++i]);
-    }
+  BST() = default;
+
+  BST(const_reference other) : size_(other.size_) {
+    copy_tree(root_, other.root_);
   }
 
-  bst(iterator i, iterator j) {
-    for (iterator current = i; current != j; ++current) {
-      this->insert(this->root_, *current);
-    }
+  BST(std::initializer_list<T> element) { this->insert(element); }
+
+  template <class OtherIterator>
+  BST(OtherIterator i, OtherIterator j) {
+    this->insert<OtherIterator>(i, j);
   }
 
-  bst(iterator i, iterator j, Compare c) {
-    for (iterator current = i; current != j; ++current) {
-      this->insert(this->root_, *current, c);
-    }
+  reference operator=(BST other) {
+    size_ = other.size_;
+    copy_tree(root_, other.root_);
+    return *this;
   }
 
-  bst(std::initializer_list<value_type>& il) {
-    for (value_type* i = il.begin(); i != il.end(); ++i) {
-      this->insert(root_, *i);
+  ~BST() { clear(); }
+
+  iterator begin() {
+    if (size_ != 0) {
+      return iterator(begin_of_order(type_order_), type_order_, root_);
     }
+    return iterator(nullptr, type_order_, nullptr);
   }
 
-  bst(std::initializer_list<value_type>& il, Compare c) {
-    for (value_type* i = il.begin(); i != il.end(); ++i) {
-      this->insert(root_, *i, c);
-    }
-  }
+  iterator end() { return iterator(nullptr, type_order_, root_); }
 
-  bst& operator=(const bst& other) {
-    bst new_bst;
-    new_bst.size_ = this->size_;
-    std::vector<iterator> iterators_order;
-    size_t i = 0;
-    preorder(other.root_, iterators_order);
-    while (i < size_) {
-      new_bst.insert(new_bst.root_, iterators_order[++i]);
-    }
-    return new_bst;
-  }
+  const_iterator begin() const { return begin(); }
 
-  ~bst() {
-    std::vector<iterator> iterators_order;
-    postorder(root_, iterators_order);
-    for (size_type i = 0; i < size_; ++i) {
-      this->erase(this->root_, iterators_order[i]->value);
-    }
-    root_ = nullptr;
-    size_ = 0;
-    max_size_ = 15352;
-    it_ = nullptr;
-    begin_ = nullptr;
-    end_ = nullptr;
-    rbegin_ = nullptr;
-    rend_ = nullptr;
-  }
+  const_iterator end() const { return end(); }
 
-  iterator begin() { return begin_; }
-
-  iterator end() { return end_; }
-
-  const_iterator begin() const { return begin_; }
-
-  const_iterator end() const { return end_; }
-
-  bool operator==(const bst& other) const {
+  bool operator==(const BST& other) const {
     return std::equal(this.begin(), this.end(), other.begin(), other.end());
   }
 
-  bool operator!=(const bst& other) const { return !(this == other); }
+  bool operator!=(const BST& other) const { return !(this == other); }
 
-  void swap(bst& other) {
+  void swap(BST& other) {
     std::swap(this->root_, other->root_);
     std::swap(this->size_, other.size_);
-    std::swap(this->begin_, other.begin_);
-    std::swap(this->end_, other.end_);
-    std::swap(this->it_, other.it_);
-    std::swap(this->rbegin_, other.rbegin_);
-    std::swap(this->rend_, other.rend_);
+    std::swap(this->allocator_, other.allocator_);
+    std::swap(this->type_order_, other.type_order_);
+    std::swap(this->compare_, other.compare_);
   }
 
   size_type size() const { return size_; }
@@ -287,137 +375,153 @@ template <class U , Order Traversal>
 
   bool empty() const { return size_ == 0; }
 
-  reference operator*() { return *it_; }
-
-  iterator rbegin() const { return rbegin_; }
-
-  iterator rend() const { return rend_; }
-
-  iterator insert(iterator node, const value_type& x, Compare comparator) {
-    if (node == nullptr) {
+  const iterator insert(const value_type& x) {
+    if (root_ == nullptr) {
       ++size_;
-      node = allocator_.allocate(1);
-      allocator_.construct(node, x);
-      return node;
-    }
-    if (comparator(x, node->value)) {
-      node->left = insert(node->left, x);
-      node->left->parent = node;
+      root_ = new node_type[1];
+      root_->value = allocator_.allocate(1);
+      *root_->value = x;
+      return iterator(root_, type_order_, root_);
     } else {
-      node->right = insert(node->right, x);
-      node->right->parent = node;
+      node_type* node = find_position(x);
+      if (*node->value == x) {
+        return iterator(node, type_order_, root_);
+      } else if (compare_(x, *node->value)) {
+        node_type* new_node = new node_type[1];
+        new_node->value = allocator_.allocate(1);
+        *new_node->value = x;
+        new_node->parent = node;
+        node->right = new_node;
+        ++size_;
+        return iterator(new_node, type_order_, root_);
+      }
+      node_type* new_left = new node_type[1];
+      new_left->value = allocator_.allocate(1);
+      *new_left->value = x;
+      new_left->parent = node;
+      node->left = new_left;
+      ++size_;
+
+      return iterator(new_left, type_order_, root_);
     }
-    it_->initiliaze(this->size_, this->root_);
-    begin_ = it_.iterators_order[0];
-    end_ = it_.iterators_order[size_ - 1];
-    rbegin_ = end_;
-    rend_ = begin_;
-    return node;
   }
 
-  iterator insert(iterator i, iterator j) {
-    iterator result;
-    for (iterator current = i; current != j; ++current) {
-      result = this->insert(this->root_, current);
+  void insert(std::initializer_list<value_type> il) {
+    insert(il.begin(), il.end());
+  }
+
+  template <class OtherIterator>
+  void insert(OtherIterator i, OtherIterator j) {
+    while (i != j) {
+      this->insert(*i);
+      ++i;
     }
+  }
+  template <typename U, class Travelsar, class Compare_ = std::less<T>,
+            class Allocator_ = std::allocator<T> >
+  void merge(BST<U, Travelsar>& other) {
+    auto i = other.begin();
+    auto j = other.end();
+    while (i != j){
+      this->insert(*i);
+      ++i;
+    }
+  }
+
+  size_type erase(const value_type& x) {
+    size_type result;
+    if (find(x)) {
+      result = 1;
+    } else {
+      result = 0;
+    }
+    this->extract(x);
     return result;
   }
 
-  iterator insert(std::initializer_list<value_type>& il) {
-    iterator result;
-    for (value_type* i = il.begin(); i != il.end(); ++i) {
-      result = this->insert(root_, *i);
-    }
-    return result;
+  const iterator erase(node_type* node) {
+    iterator current(node, type_order_, root_);
+    ++current;
+    this->extract(node);
+    return current;
   }
 
-  void merge(const bst& other) {
-    for (auto i = other.begin(); i != other.end(); ++i) {
-      value_type x = *i.value;
-      this->insert(root_, x);
-    }
-    other.clear();
+  template <class OtherIterator>
+  const iterator erase(OtherIterator i, OtherIterator j) {
+    ++j;
+    extract(i, j);
+    return j;
   }
 
-  iterator erase(iterator node, const value_type& x) {
-    if (node == nullptr) {
-      return node;
+  node_type* extract(node_type*& position, const T& x) {
+    if (position == nullptr) {
+      return position;
     }
-    if (Compare{}(x, node->value)) {
-      node->left = erase(node->left, x);
-    } else if (Compare{}(node->value, x)) {
-      node->right = erase(node->right, x);
+    if (compare_(*position->value, x)) {
+      position->left = extract(position->left, x);
+    } else if (compare_(x, *position->value)) {
+      position->right = extract(position->right, x);
     } else {
-      if (node->left == nullptr) {
-        iterator current = node->right;
-        current->parent = node->parent;
+      if (position->left == nullptr) {
+        node_type* new_node = position->right;
+        delete[] position;
         --size_;
-        return current;
-      } else if (node->right == nullptr) {
-        iterator current = node->left;
-        current->parent = node->parent;
+        return new_node;
+      } else if (position->right == nullptr) {
+        node_type* new_node = position->left;
+        delete[] position;
         --size_;
-        return current;
+        return new_node;
       }
-      iterator current = minimum(node->right);
-      node->value = current->value;
-      node->right = erase(node->right, current->value);
+      node_type* new_node = minimum(position->right);
+      position->value = new_node->value;
+      position->right = extract(position->right, *new_node->value);
     }
-    it_->initiliaze(this->size_, this->root_);
-    begin_ = it_->iterators_order[0];
-    end_ = it_->iterators_order[size_ - 1];
-    rbegin_ = end_;
-    rend_ = begin_;
+    return position;
+  }
+
+  void extract(iterator iterator_) { extract(iterator_.cur_node()); }
+
+  void extract(node_type* node) {
+    if (node) {
+      root_ = extract(root_, *node->value);
+    }
+  }
+
+  void extract(const value_type& x) {
+    node_type* node = find(x);
+    extract(node);
+  }
+
+  void clear() { delete_node(root_); }
+
+  node_type* find(const value_type& x) {
+    node_type* node = root_;
+    while (node) {
+      if (*node->value == x) {
+        return node;
+      } else if (compare_(x, *node->value)) {
+        node = node->right;
+      } else {
+        node = node->left;
+      }
+    }
     return node;
   }
 
-  void clear() { ~bst(); }
-
-  iterator find(const_iterator node) {
-    return std::find(this->begin(), this->end(), node);
-  }
-
-  size_type count(const_iterator node) {
-    size_type count = 0;
-    for (auto i = this->begin(); i != this->end(); ++i) {
-      if (i == node) {
-        ++count;
-      }
-    }
-    return count;
-  }
+  size_type count(const value_type& x) { return (find(x) ? 1 : 0); }
 
   bool contains(const_iterator node) { return this->count(node) != 0; }
 
-  iterator lower_bound(const_iterator node) {
-    if (node->right != nullptr) {
-      return minimum(node->right);
-    }
-    iterator y = node->parent;
-    while (y != nullptr && node == y->right) {
-      node = y;
-      y = y->parent;
-    }
-    return y;
-  }
-
-  iterator upper_bound(const_iterator node) {
-    if (node->left != nullptr) {
-      return maximum(node->right);
-    }
-    iterator y = node->parent;
-    while (y != nullptr && node == y.left) {
-      node = y;
-      y = y.parent;
-    }
-    return y;
-  }
-
   allocator_type get_allocator() { return allocator_; }
+
+  const Compare key_comp() { return compare_; }
+
+  const Compare value_comp() { return compare_; }
 };
 
-template <class T, Order Traversal = InOrder, class Compare = std::less<T>,
+template <class T, class Order = InOrder, class Compare = std::less<T>,
           class Allocator = std::allocator<T> >
-void swap(bst<T, Traversal>& lhs, bst<T, Traversal>& rhs) {
+void swap(BST<T, Order>& lhs, BST<T, Order>& rhs) {
   lhs.swap(rhs);
 }
